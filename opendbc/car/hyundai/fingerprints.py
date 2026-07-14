@@ -45,6 +45,20 @@ FW_VERSIONS = {
       b'\xf1\x00DH LKAS 1.5 -140425',
     ],
   },
+  CAR.HYUNDAI_INSTER: {
+    (Ecu.abs, 0x7d1, None): [
+      b'\xf1\x00AX  IEB \x02 103 $\x11  58520-GX000',
+    ],
+    (Ecu.eps, 0x7d4, None): [
+      b'\xf1\x00AX  MDPS C 1.00 1.04 56300-GX000 5327',
+    ],
+    (Ecu.fwdCamera, 0x7c4, None): [
+      b'\xf1\x00AXE MFC  AT KOR LHD 1.00 1.03 99211-GX000 250120',
+    ],
+    (Ecu.fwdRadar, 0x7d0, None): [
+      b'\xf1\x00AX__ RDR -----      1.00 1.00 99110-GX000         ',
+    ],
+  },
   CAR.HYUNDAI_IONIQ: {
     (Ecu.fwdRadar, 0x7d0, None): [
       b'\xf1\x00AEhe SCC H-CUP      1.01 1.01 96400-G2000         ',
