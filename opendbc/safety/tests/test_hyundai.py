@@ -338,6 +338,7 @@ class TestHyundaiSafetyCanRefresh(TestHyundaiSafety):
 
 
 class TestHyundaiSafetyAltAx1evLdaButton(TestHyundaiSafetyCameraSCC):
+  __test__ = True
   LFAHDA_MFC_LEN = 8
   SAFETY_PARAM_SP = HyundaiSafetyFlagsSP.HAS_LDA_BUTTON
 
@@ -356,6 +357,16 @@ class TestHyundaiSafetyAltAx1evLdaButton(TestHyundaiSafetyCameraSCC):
   def _user_gas_msg(self, gas):
     values = {"Accel_Pedal_Pos": gas}
     return self.packer.make_can_msg_safety("E_EMS11", 0, values, fix_checksum=checksum)
+
+  def test_lda_button_not_shadowed_by_bcm_po_11(self):
+    # The Inster sends both messages. Ensure the legacy message arriving first
+    # cannot prevent safety from receiving the AX1EV-specific LDA button.
+    self._rx(self.packer.make_can_msg_safety("BCM_PO_11", 0, {"LDA_BTN": 0}))
+    self.safety.set_controls_allowed_lateral(False)
+    self.safety.set_mads_params(True, False, False)
+    self._rx(self._lkas_button_msg(True))
+    self._rx(self._lkas_button_msg(False))
+    self.assertTrue(self.safety.get_controls_allowed_lateral())
 
   def test_camera_scc_forwarding(self):
     # Keep vehicle inputs flowing to the camera so stock SCC remains healthy.

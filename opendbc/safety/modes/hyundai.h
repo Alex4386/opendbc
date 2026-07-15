@@ -55,9 +55,13 @@ const LongitudinalLimits HYUNDAI_LONG_LIMITS = {
 #define HYUNDAI_FCEV_GAS_ADDR_CHECK \
   {.msg = {{0x91,  0, 8, 100U, .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true}, { 0 }, { 0 }}}, \
 
+// AX1EV sends both 0x391 and 0x416, so select the monitored address from the
+// platform flag instead of treating them as mutually exclusive alternatives.
 #define HYUNDAI_LDA_BUTTON_ADDR_CHECK \
-  {.msg = {{0x391, 0, 8, .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true, .frequency = 50U}, \
-           {0x416, 0, 8, .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true, .frequency = 50U}, { 0 }}}, \
+  {.msg = {{0x391, 0, 8, .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true, .frequency = 50U}, { 0 }, { 0 }}}, \
+
+#define HYUNDAI_AX1_LDA_BUTTON_ADDR_CHECK \
+  {.msg = {{0x416, 0, 8, .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true, .frequency = 50U}, { 0 }, { 0 }}}, \
 
 #define HYUNDAI_NON_SCC_HEV_ADDR_CHECK \
   {.msg = {{0x595U, 0, 8, 10U, .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true}, { 0 }, { 0 }}}, \
@@ -407,7 +411,18 @@ static safety_config hyundai_init(uint16_t param) {
       HYUNDAI_LDA_BUTTON_ADDR_CHECK
     };
 
-    SET_RX_CHECKS(hyundai_cam_scc_rx_checks, ret);
+    static RxCheck hyundai_cam_scc_ax1ev_rx_checks[] = {
+      HYUNDAI_COMMON_RX_CHECKS(false)
+      HYUNDAI_SCC12_ADDR_CHECK(2)
+      HYUNDAI_SCC11_ADDR_CHECK(2)
+      HYUNDAI_AX1_LDA_BUTTON_ADDR_CHECK
+    };
+
+    if (hyundai_alt_ax1ev_lda_button) {
+      SET_RX_CHECKS(hyundai_cam_scc_ax1ev_rx_checks, ret);
+    } else {
+      SET_RX_CHECKS(hyundai_cam_scc_rx_checks, ret);
+    }
     if (hyundai_can_refresh_msgs) {
       SET_TX_MSGS(HYUNDAI_CAMERA_SCC_TX_MSGS_REFRESH, ret);
     } else {
