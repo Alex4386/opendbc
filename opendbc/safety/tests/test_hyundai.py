@@ -337,36 +337,38 @@ class TestHyundaiSafetyCanRefresh(TestHyundaiSafety):
     self.safety.init_tests()
 
 
-class TestHyundaiSafetyAltAx1evLdaButton(unittest.TestCase):
-  TX_MSGS = []
+class TestHyundaiSafetyAltAx1evLdaButton(TestHyundaiSafetyCameraSCC):
+  LFAHDA_MFC_LEN = 8
+  SAFETY_PARAM_SP = HyundaiSafetyFlagsSP.HAS_LDA_BUTTON
 
   def setUp(self):
     self.packer = CANPackerSafety("hyundai_can_refresh_generated")
     self.safety = libsafety_py.libsafety
-    self.safety.set_current_safety_param_sp(HyundaiSafetyFlagsSP.HAS_LDA_BUTTON)
+    self.safety.set_current_safety_param_sp(self.SAFETY_PARAM_SP)
     self.addCleanup(self.safety.set_current_safety_param_sp, HyundaiSafetyFlagsSP.DEFAULT)
-    self.safety.set_safety_hooks(CarParams.SafetyModel.hyundai, HyundaiSafetyFlags.CAN_REFRESH_MSGS |
-                                 HyundaiSafetyFlags.ALT_AX1EV_LDA_BUTTON)
+    self.safety.set_safety_hooks(CarParams.SafetyModel.hyundai, HyundaiSafetyFlags.EV_GAS | HyundaiSafetyFlags.CAMERA_SCC |
+                                 HyundaiSafetyFlags.CAN_REFRESH_MSGS | HyundaiSafetyFlags.ALT_AX1EV_LDA_BUTTON)
     self.safety.init_tests()
 
-  def test_lda_button(self):
-    self.safety.set_controls_allowed_lateral(False)
-    self.safety.set_mads_params(True, False, False)
-    self._rx(self.packer.make_can_msg_safety("AX1_LDA_BUTTON", 0, {"LDA_BTN": 1}))
-    self._rx(self.packer.make_can_msg_safety("AX1_LDA_BUTTON", 0, {"LDA_BTN": 0}))
-    self.assertTrue(self.safety.get_controls_allowed_lateral())
+  def _lkas_button_msg(self, enabled):
+    return self.packer.make_can_msg_safety("AX1_LDA_BUTTON", 0, {"LDA_BTN": enabled})
 
-  def test_lda_button_not_forwarded_to_camera(self):
-    self.assertEqual(-1, self.safety.safety_fwd_hook(0, 0x416))
-    self.assertEqual(2, self.safety.safety_fwd_hook(0, 0x415))
-    self.assertEqual(0, self.safety.safety_fwd_hook(2, 0x416))
+  def _user_gas_msg(self, gas):
+    values = {"Accel_Pedal_Pos": gas}
+    return self.packer.make_can_msg_safety("E_EMS11", 0, values, fix_checksum=checksum)
 
-  def test_lda_button_forwarded_without_inster_flag(self):
-    self.safety.set_safety_hooks(CarParams.SafetyModel.hyundai, HyundaiSafetyFlags.CAN_REFRESH_MSGS)
-    self.assertEqual(2, self.safety.safety_fwd_hook(0, 0x416))
+  def test_camera_scc_forwarding(self):
+    # Keep vehicle inputs flowing to the camera so stock SCC remains healthy.
+    for addr in (0x416, 0x4F1):
+      self.assertEqual(2, self.safety.safety_fwd_hook(0, addr))
 
-  def _rx(self, msg):
-    return self.safety.safety_rx_hook(msg)
+    # Block only the camera's lateral/HUD outputs that openpilot replaces.
+    for addr in (0x340, 0x485):
+      self.assertEqual(-1, self.safety.safety_fwd_hook(2, addr))
+
+    # Stock longitudinal remains camera-controlled when openpilot longitudinal is off.
+    for addr in (0x420, 0x421):
+      self.assertEqual(0, self.safety.safety_fwd_hook(2, addr))
 
 
 class TestHyundaiLegacySafety(TestHyundaiSafety):

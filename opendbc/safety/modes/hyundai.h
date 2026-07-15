@@ -305,12 +305,6 @@ static bool hyundai_tx_hook(const CANPacket_t *msg) {
   return tx;
 }
 
-static bool hyundai_fwd_hook(int bus_num, int addr) {
-  // Prevent the Inster's LDA button request from reaching the stock front camera,
-  // which would otherwise react to the press alongside openpilot.
-  return hyundai_alt_ax1ev_lda_button && (bus_num == 0) && (addr == 0x416);
-}
-
 static safety_config hyundai_init(uint16_t param) {
   static const CanMsg HYUNDAI_REFRESH_TX_MSGS[] = {
     HYUNDAI_COMMON_TX_MSGS(0, true)
@@ -542,7 +536,6 @@ const safety_hooks hyundai_hooks = {
   .init = hyundai_init,
   .rx = hyundai_rx_hook,
   .tx = hyundai_tx_hook,
-  .fwd = hyundai_fwd_hook,
   .get_counter = hyundai_get_counter,
   .get_checksum = hyundai_get_checksum,
   .compute_checksum = hyundai_compute_checksum,
@@ -552,7 +545,6 @@ const safety_hooks hyundai_legacy_hooks = {
   .init = hyundai_legacy_init,
   .rx = hyundai_rx_hook,
   .tx = hyundai_tx_hook,
-  .fwd = hyundai_fwd_hook,
   .get_counter = hyundai_get_counter,
   .get_checksum = hyundai_get_checksum,
   .compute_checksum = hyundai_compute_checksum,
