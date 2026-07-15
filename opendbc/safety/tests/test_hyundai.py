@@ -337,6 +337,27 @@ class TestHyundaiSafetyCanRefresh(TestHyundaiSafety):
     self.safety.init_tests()
 
 
+class TestHyundaiSafetyAltAx1evLdaButton(unittest.TestCase):
+  def setUp(self):
+    self.packer = CANPackerSafety("hyundai_can_refresh_generated")
+    self.safety = libsafety_py.libsafety
+    self.safety.set_current_safety_param_sp(HyundaiSafetyFlagsSP.HAS_LDA_BUTTON)
+    self.addCleanup(self.safety.set_current_safety_param_sp, HyundaiSafetyFlagsSP.DEFAULT)
+    self.safety.set_safety_hooks(CarParams.SafetyModel.hyundai, HyundaiSafetyFlags.CAN_REFRESH_MSGS |
+                                 HyundaiSafetyFlags.ALT_AX1EV_LDA_BUTTON)
+    self.safety.init_tests()
+
+  def test_lda_button(self):
+    self.safety.set_controls_allowed_lateral(False)
+    self.safety.set_mads_params(True, False, False)
+    self._rx(self.packer.make_can_msg_safety("AX1_LDA_BUTTON", 0, {"LDA_BTN": 1}))
+    self._rx(self.packer.make_can_msg_safety("AX1_LDA_BUTTON", 0, {"LDA_BTN": 0}))
+    self.assertTrue(self.safety.get_controls_allowed_lateral())
+
+  def _rx(self, msg):
+    return self.safety.safety_rx_hook(msg)
+
+
 class TestHyundaiLegacySafety(TestHyundaiSafety):
   def setUp(self):
     self.packer = CANPackerSafety("hyundai_can_generated")

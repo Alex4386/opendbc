@@ -69,6 +69,7 @@ class HyundaiSafetyFlags(IntFlag):
   FCEV_GAS = 256
   ALT_LIMITS_2 = 512
   CAN_REFRESH_MSGS = 1024
+  ALT_AX1EV_LDA_BUTTON = 2048
 
 
 # Hyundai/Kia/Genesis SCC (Smart Cruise Control) and steering architecture:
@@ -151,6 +152,8 @@ class HyundaiFlags(IntFlag):
   ALT_LIMITS_2 = 2 ** 26
 
   CAN_REFRESH_MSGS = 2 ** 27
+
+  ALT_AX1EV_LDA_BUTTON = 2 ** 28
 
 
 @dataclass
@@ -276,7 +279,7 @@ class CAR(Platforms):
   HYUNDAI_INSTER = HyundaiRefreshPlatformConfig(
     [HyundaiCarDocs("Hyundai Inster (Casper Electric) 2025", car_parts=CarParts.common([CarHarness.hyundai_a]))],
     CarSpecs(mass=1350, wheelbase=2.580, steerRatio=13.2),
-    flags=HyundaiFlags.CHECKSUM_CRC8 | HyundaiFlags.CAMERA_SCC | HyundaiFlags.EV,
+    flags=HyundaiFlags.CHECKSUM_CRC8 | HyundaiFlags.CAMERA_SCC | HyundaiFlags.EV | HyundaiFlags.ALT_AX1EV_LDA_BUTTON,
   )
   HYUNDAI_IONIQ = HyundaiPlatformConfig(
     [HyundaiCarDocs("Hyundai Ioniq Hybrid 2017-19", car_parts=CarParts.common([CarHarness.hyundai_c]))],
