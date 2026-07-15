@@ -338,6 +338,8 @@ class TestHyundaiSafetyCanRefresh(TestHyundaiSafety):
 
 
 class TestHyundaiSafetyAltAx1evLdaButton(unittest.TestCase):
+  TX_MSGS = []
+
   def setUp(self):
     self.packer = CANPackerSafety("hyundai_can_refresh_generated")
     self.safety = libsafety_py.libsafety
@@ -353,6 +355,15 @@ class TestHyundaiSafetyAltAx1evLdaButton(unittest.TestCase):
     self._rx(self.packer.make_can_msg_safety("AX1_LDA_BUTTON", 0, {"LDA_BTN": 1}))
     self._rx(self.packer.make_can_msg_safety("AX1_LDA_BUTTON", 0, {"LDA_BTN": 0}))
     self.assertTrue(self.safety.get_controls_allowed_lateral())
+
+  def test_lda_button_not_forwarded_to_camera(self):
+    self.assertEqual(-1, self.safety.safety_fwd_hook(0, 0x416))
+    self.assertEqual(2, self.safety.safety_fwd_hook(0, 0x415))
+    self.assertEqual(0, self.safety.safety_fwd_hook(2, 0x416))
+
+  def test_lda_button_forwarded_without_inster_flag(self):
+    self.safety.set_safety_hooks(CarParams.SafetyModel.hyundai, HyundaiSafetyFlags.CAN_REFRESH_MSGS)
+    self.assertEqual(2, self.safety.safety_fwd_hook(0, 0x416))
 
   def _rx(self, msg):
     return self.safety.safety_rx_hook(msg)
