@@ -195,8 +195,9 @@ static void hyundai_rx_hook(const CANPacket_t *msg) {
       hyundai_common_cruise_buttons_check(cruise_button, GET_BIT(msg, 58U));
     }
 
-    // ACC steering wheel buttons
-    if (msg->addr == 0x4F1U) {
+    // Legacy ACC steering wheel buttons. AX1EV also sends this frame with an
+    // unrelated button value, so it must not overwrite the 0x3EF edge state.
+    if ((msg->addr == 0x4F1U) && !hyundai_alt_ax1ev_buttons) {
       int cruise_button = msg->data[0] & 0x7U;
       bool main_button = GET_BIT(msg, 3U);
       hyundai_common_cruise_buttons_check(cruise_button, main_button);

@@ -397,6 +397,33 @@ class TestHyundaiSafetyAltAx1evLdaButton(TestHyundaiSafetyCameraSCC):
         self.safety.safety_tick_current_safety_config()
         self.assertTrue(self.safety.get_controls_allowed())
 
+  def test_ax1_buttons_not_shadowed_by_clu11(self):
+    safety_param = HyundaiSafetyFlags.EV_GAS | HyundaiSafetyFlags.LONG | HyundaiSafetyFlags.CAMERA_SCC | \
+                   HyundaiSafetyFlags.CAN_REFRESH_MSGS | HyundaiSafetyFlags.ALT_AX1EV_BUTTONS
+    self.safety.set_safety_hooks(CarParams.SafetyModel.hyundai, safety_param)
+    self.safety.init_tests()
+    self.safety.set_mads_params(True, False, False)
+
+    # AX1EV sends CLU11 with an unrelated value between 0x3EF samples. It must
+    # not erase the rocker state before the falling-edge engagement check.
+    self.safety.set_controls_allowed(False)
+    self._rx(self._ax1_cruise_button_msg(buttons=1))
+    self._rx(self._button_msg(7))
+    self._rx(self._ax1_cruise_button_msg())
+    self.assertTrue(self.safety.get_controls_allowed())
+
+    # Nor may CLU11 reset the shared main-button edge state and make a held
+    # 0x3EF press toggle ACC main repeatedly.
+    self.safety.set_acc_main_on(False)
+    self.safety.set_controls_allowed_lateral(False)
+    self._rx(self._ax1_cruise_button_msg(main_button=1))
+    self.assertTrue(self.safety.get_acc_main_on())
+    self._rx(self._button_msg(7))
+    self.assertTrue(self.safety.get_acc_main_on())
+    self._rx(self._ax1_cruise_button_msg(main_button=1))
+    self.assertTrue(self.safety.get_acc_main_on())
+    self.assertTrue(self.safety.get_controls_allowed_lateral())
+
   def test_ax1_buttons_with_experimental_longitudinal(self):
     safety_param = HyundaiSafetyFlags.EV_GAS | HyundaiSafetyFlags.LONG | HyundaiSafetyFlags.CAMERA_SCC | \
                    HyundaiSafetyFlags.CAN_REFRESH_MSGS | HyundaiSafetyFlags.ALT_AX1EV_BUTTONS
