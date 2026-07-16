@@ -372,6 +372,31 @@ class TestHyundaiSafetyAltAx1evLdaButton(TestHyundaiSafetyCameraSCC):
     self._rx(self._lkas_button_msg(False))
     self.assertTrue(self.safety.get_controls_allowed_lateral())
 
+  def test_ax1_low_frequency_rx_checks(self):
+    base_param = HyundaiSafetyFlags.EV_GAS | HyundaiSafetyFlags.CAMERA_SCC | \
+                 HyundaiSafetyFlags.CAN_REFRESH_MSGS | HyundaiSafetyFlags.ALT_AX1EV_BUTTONS
+
+    for longitudinal in (False, True):
+      with self.subTest(longitudinal=longitudinal):
+        self.safety.set_safety_hooks(CarParams.SafetyModel.hyundai,
+                                     base_param | (HyundaiSafetyFlags.LONG if longitudinal else 0))
+        self.safety.init_tests()
+
+        # Feed every monitored input once, then run the Panda safety tick. The
+        # AX1 button frames are 5 Hz and must not invalidate an otherwise-live
+        # configuration in either stock or openpilot longitudinal mode.
+        for msg in (self._user_gas_msg(0), self._speed_msg(0), self._user_brake_msg(False),
+                    self._torque_driver_msg(0), self._button_msg(0), self._lkas_button_msg(False),
+                    self._ax1_cruise_button_msg()):
+          self._rx(msg)
+        if not longitudinal:
+          self._rx(self._pcm_status_msg(False))
+          self._rx(self._acc_state_msg(False))
+
+        self.safety.set_controls_allowed(True)
+        self.safety.safety_tick_current_safety_config()
+        self.assertTrue(self.safety.get_controls_allowed())
+
   def test_ax1_buttons_with_experimental_longitudinal(self):
     safety_param = HyundaiSafetyFlags.EV_GAS | HyundaiSafetyFlags.LONG | HyundaiSafetyFlags.CAMERA_SCC | \
                    HyundaiSafetyFlags.CAN_REFRESH_MSGS | HyundaiSafetyFlags.ALT_AX1EV_BUTTONS
@@ -379,7 +404,7 @@ class TestHyundaiSafetyAltAx1evLdaButton(TestHyundaiSafetyCameraSCC):
     self.safety.set_safety_hooks(CarParams.SafetyModel.hyundai, safety_param)
     self.safety.init_tests()
 
-    # AX1EV uses bit 58 for SET/decel and bit 59 for RES/accel.
+    # AX1EV uses bit 60 for SET/decel and bit 61 for RES/accel.
     for button in (1, 2):
       self.safety.set_controls_allowed(False)
       self._rx(self._ax1_cruise_button_msg(buttons=button))
@@ -398,7 +423,7 @@ class TestHyundaiSafetyAltAx1evLdaButton(TestHyundaiSafetyCameraSCC):
     self._rx(self._ax1_cruise_button_msg())
     self.assertFalse(self.safety.get_controls_allowed())
 
-    # Bit 61 is the cruise-main toggle on AX1EV.
+    # Bit 58 is the cruise-main toggle on AX1EV.
     self.safety.set_acc_main_on(False)
     self._rx(self._ax1_cruise_button_msg(main_button=1))
     self.assertTrue(self.safety.get_acc_main_on())

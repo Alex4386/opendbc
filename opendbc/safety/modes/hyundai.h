@@ -61,10 +61,10 @@ const LongitudinalLimits HYUNDAI_LONG_LIMITS = {
   {.msg = {{0x391, 0, 8, .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true, .frequency = 50U}, { 0 }, { 0 }}}, \
 
 #define HYUNDAI_AX1_LDA_BUTTON_ADDR_CHECK \
-  {.msg = {{0x416, 0, 8, .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true, .frequency = 50U}, { 0 }, { 0 }}}, \
+  {.msg = {{0x416, 0, 8, .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true, .frequency = 5U, .ignore_frequency_check = true}, { 0 }, { 0 }}}, \
 
 #define HYUNDAI_AX1_CRUISE_BUTTON_ADDR_CHECK \
-  {.msg = {{0x3EF, 0, 8, .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true, .frequency = 5U}, { 0 }, { 0 }}}, \
+  {.msg = {{0x3EF, 0, 8, .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true, .frequency = 5U, .ignore_frequency_check = true}, { 0 }, { 0 }}}, \
 
 #define HYUNDAI_NON_SCC_HEV_ADDR_CHECK \
   {.msg = {{0x595U, 0, 8, 10U, .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true}, { 0 }, { 0 }}}, \
@@ -183,8 +183,8 @@ static void hyundai_rx_hook(const CANPacket_t *msg) {
     // AX1EV ACC steering wheel buttons
     if ((msg->addr == 0x3EFU) && hyundai_alt_ax1ev_buttons) {
       int cruise_button = HYUNDAI_BTN_NONE;
-      int ax1_button = (msg->data[7] >> 2U) & 0x3U;
-      if (GET_BIT(msg, 57U)) {
+      int ax1_button = (msg->data[7] >> 4U) & 0x3U;
+      if (GET_BIT(msg, 62U)) {
         cruise_button = HYUNDAI_BTN_RESUME;
       } else if (ax1_button == 1) {
         cruise_button = HYUNDAI_BTN_SET;
@@ -192,7 +192,7 @@ static void hyundai_rx_hook(const CANPacket_t *msg) {
         cruise_button = HYUNDAI_BTN_RESUME;
       } else {
       }
-      hyundai_common_cruise_buttons_check(cruise_button, GET_BIT(msg, 61U));
+      hyundai_common_cruise_buttons_check(cruise_button, GET_BIT(msg, 58U));
     }
 
     // ACC steering wheel buttons
