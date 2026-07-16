@@ -63,6 +63,9 @@ const LongitudinalLimits HYUNDAI_LONG_LIMITS = {
 #define HYUNDAI_AX1_LDA_BUTTON_ADDR_CHECK \
   {.msg = {{0x416, 0, 8, .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true, .frequency = 50U}, { 0 }, { 0 }}}, \
 
+#define HYUNDAI_AX1_CRUISE_BUTTON_ADDR_CHECK \
+  {.msg = {{0x3EF, 0, 8, .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true, .frequency = 5U}, { 0 }, { 0 }}}, \
+
 #define HYUNDAI_NON_SCC_HEV_ADDR_CHECK \
   {.msg = {{0x595U, 0, 8, 10U, .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true}, { 0 }, { 0 }}}, \
 
@@ -170,11 +173,26 @@ static void hyundai_rx_hook(const CANPacket_t *msg) {
     }
 
     // LDA steering wheel button
-    if ((msg->addr == 0x416U) && hyundai_alt_ax1ev_lda_button) {
+    if ((msg->addr == 0x416U) && hyundai_alt_ax1ev_buttons) {
       mads_button_press = GET_BIT(msg, 58U) ? MADS_BUTTON_PRESSED : MADS_BUTTON_NOT_PRESSED;
-    } else if ((msg->addr == 0x391U) && !hyundai_alt_ax1ev_lda_button) {
+    } else if ((msg->addr == 0x391U) && !hyundai_alt_ax1ev_buttons) {
       mads_button_press = GET_BIT(msg, 4U) ? MADS_BUTTON_PRESSED : MADS_BUTTON_NOT_PRESSED;
     } else {
+    }
+
+    // AX1EV ACC steering wheel buttons
+    if ((msg->addr == 0x3EFU) && hyundai_alt_ax1ev_buttons) {
+      int cruise_button = HYUNDAI_BTN_NONE;
+      int ax1_button = (msg->data[7] >> 2U) & 0x3U;
+      if (GET_BIT(msg, 57U)) {
+        cruise_button = HYUNDAI_BTN_RESUME;
+      } else if (ax1_button == 1) {
+        cruise_button = HYUNDAI_BTN_SET;
+      } else if (ax1_button == 2) {
+        cruise_button = HYUNDAI_BTN_RESUME;
+      } else {
+      }
+      hyundai_common_cruise_buttons_check(cruise_button, GET_BIT(msg, 61U));
     }
 
     // ACC steering wheel buttons
@@ -374,7 +392,15 @@ static safety_config hyundai_init(uint16_t param) {
       HYUNDAI_LDA_BUTTON_ADDR_CHECK
     };
 
-    if (hyundai_fcev_gas_signal) {
+    static RxCheck hyundai_ax1ev_long_rx_checks[] = {
+      HYUNDAI_COMMON_RX_CHECKS(false)
+      HYUNDAI_AX1_LDA_BUTTON_ADDR_CHECK
+      HYUNDAI_AX1_CRUISE_BUTTON_ADDR_CHECK
+    };
+
+    if (hyundai_alt_ax1ev_buttons) {
+      SET_RX_CHECKS(hyundai_ax1ev_long_rx_checks, ret);
+    } else if (hyundai_fcev_gas_signal) {
       if (hyundai_has_lda_button) {
         SET_RX_CHECKS(hyundai_fcev_lda_button_long_rx_checks, ret);
       } else {
@@ -416,9 +442,10 @@ static safety_config hyundai_init(uint16_t param) {
       HYUNDAI_SCC12_ADDR_CHECK(2)
       HYUNDAI_SCC11_ADDR_CHECK(2)
       HYUNDAI_AX1_LDA_BUTTON_ADDR_CHECK
+      HYUNDAI_AX1_CRUISE_BUTTON_ADDR_CHECK
     };
 
-    if (hyundai_alt_ax1ev_lda_button) {
+    if (hyundai_alt_ax1ev_buttons) {
       SET_RX_CHECKS(hyundai_cam_scc_ax1ev_rx_checks, ret);
     } else {
       SET_RX_CHECKS(hyundai_cam_scc_rx_checks, ret);
@@ -543,7 +570,7 @@ static safety_config hyundai_legacy_init(uint16_t param) {
   hyundai_longitudinal = false;
   hyundai_camera_scc = false;
   hyundai_can_refresh_msgs = false;
-  hyundai_alt_ax1ev_lda_button = false;
+  hyundai_alt_ax1ev_buttons = false;
   return BUILD_SAFETY_CFG(hyundai_legacy_rx_checks, HYUNDAI_TX_MSGS);
 }
 

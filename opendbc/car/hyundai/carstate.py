@@ -24,6 +24,7 @@ STANDSTILL_THRESHOLD = 12 * 0.03125
 ENABLE_BUTTONS = (Buttons.RES_ACCEL, Buttons.SET_DECEL, Buttons.CANCEL)
 BUTTONS_DICT = {Buttons.RES_ACCEL: ButtonType.accelCruise, Buttons.SET_DECEL: ButtonType.decelCruise,
                 Buttons.GAP_DIST: ButtonType.gapAdjustCruise, Buttons.CANCEL: ButtonType.cancel}
+AX1_CRUISE_BUTTONS = {0: Buttons.NONE, 1: Buttons.SET_DECEL, 2: Buttons.RES_ACCEL, 3: Buttons.GAP_DIST}
 
 
 class CarState(CarStateBase, EsccCarStateBase, MadsCarState, CarStateExt):
@@ -191,9 +192,15 @@ class CarState(CarStateBase, EsccCarStateBase, MadsCarState, CarStateExt):
     prev_cruise_buttons = self.cruise_buttons[-1]
     prev_main_buttons = self.main_buttons[-1]
     prev_lda_button = self.lda_button
-    self.cruise_buttons.extend(cp.vl_all["CLU11"]["CF_Clu_CruiseSwState"])
-    self.main_buttons.extend(cp.vl_all["CLU11"]["CF_Clu_CruiseSwMain"])
-    if self.CP.flags & HyundaiFlags.ALT_AX1EV_LDA_BUTTON:
+    if self.CP.flags & HyundaiFlags.ALT_AX1EV_BUTTONS:
+      ax1_button = Buttons.RES_ACCEL if cp.vl["AX1_CRUISE_BUTTONS"]["CRUISE_RESUME"] else \
+                   AX1_CRUISE_BUTTONS[cp.vl["AX1_CRUISE_BUTTONS"]["CRUISE_BUTTONS"]]
+      self.cruise_buttons.append(ax1_button)
+      self.main_buttons.append(cp.vl["AX1_CRUISE_BUTTONS"]["CRUISE_MAIN"])
+    else:
+      self.cruise_buttons.extend(cp.vl_all["CLU11"]["CF_Clu_CruiseSwState"])
+      self.main_buttons.extend(cp.vl_all["CLU11"]["CF_Clu_CruiseSwMain"])
+    if self.CP.flags & HyundaiFlags.ALT_AX1EV_BUTTONS:
       self.lda_button = cp.vl["AX1_LDA_BUTTON"]["LDA_BTN"]
     elif self.CP.flags & HyundaiFlags.HAS_LDA_BUTTON:
       self.lda_button = cp.vl["BCM_PO_11"]["LDA_BTN"]
@@ -335,8 +342,9 @@ class CarState(CarStateBase, EsccCarStateBase, MadsCarState, CarStateExt):
       return self.get_can_parsers_canfd(CP)
 
     pt_messages = []
-    if CP.flags & HyundaiFlags.ALT_AX1EV_LDA_BUTTON:
+    if CP.flags & HyundaiFlags.ALT_AX1EV_BUTTONS:
       pt_messages.append(("AX1_LDA_BUTTON", math.nan))
+      pt_messages.append(("AX1_CRUISE_BUTTONS", 5))
 
     return {
       Bus.pt: CANParser(DBC[CP.carFingerprint][Bus.pt], pt_messages, 0),
