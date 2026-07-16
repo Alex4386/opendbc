@@ -24,7 +24,8 @@ STANDSTILL_THRESHOLD = 12 * 0.03125
 ENABLE_BUTTONS = (Buttons.RES_ACCEL, Buttons.SET_DECEL, Buttons.CANCEL)
 BUTTONS_DICT = {Buttons.RES_ACCEL: ButtonType.accelCruise, Buttons.SET_DECEL: ButtonType.decelCruise,
                 Buttons.GAP_DIST: ButtonType.gapAdjustCruise, Buttons.CANCEL: ButtonType.cancel}
-AX1_CRUISE_BUTTONS = {0: Buttons.NONE, 1: Buttons.SET_DECEL, 2: Buttons.RES_ACCEL, 3: Buttons.GAP_DIST}
+AX1_CRUISE_BUTTONS = {0: Buttons.NONE, 1: Buttons.RES_ACCEL, 2: Buttons.SET_DECEL, 3: Buttons.GAP_DIST}
+AX1_PAUSE_RESUME_BUTTON = Buttons.CANCEL
 
 
 class CarState(CarStateBase, EsccCarStateBase, MadsCarState, CarStateExt):
@@ -193,7 +194,7 @@ class CarState(CarStateBase, EsccCarStateBase, MadsCarState, CarStateExt):
     prev_main_buttons = self.main_buttons[-1]
     prev_lda_button = self.lda_button
     if self.CP.flags & HyundaiFlags.ALT_AX1EV_BUTTONS:
-      ax1_button = Buttons.RES_ACCEL if cp.vl["AX1_CRUISE_BUTTONS"]["CRUISE_RESUME"] else \
+      ax1_button = AX1_PAUSE_RESUME_BUTTON if cp.vl["AX1_CRUISE_BUTTONS"]["CRUISE_RESUME"] else \
                    AX1_CRUISE_BUTTONS[cp.vl["AX1_CRUISE_BUTTONS"]["CRUISE_BUTTONS"]]
       self.cruise_buttons.append(ax1_button)
       self.main_buttons.append(cp.vl["AX1_CRUISE_BUTTONS"]["CRUISE_MAIN"])

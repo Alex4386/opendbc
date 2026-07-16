@@ -404,18 +404,27 @@ class TestHyundaiSafetyAltAx1evLdaButton(TestHyundaiSafetyCameraSCC):
     self.safety.set_safety_hooks(CarParams.SafetyModel.hyundai, safety_param)
     self.safety.init_tests()
 
-    # AX1EV uses bit 60 for SET/decel and bit 61 for RES/accel.
+    # AX1EV uses bit 60 for RES/accel and bit 61 for SET/decel.
     for button in (1, 2):
       self.safety.set_controls_allowed(False)
       self._rx(self._ax1_cruise_button_msg(buttons=button))
       self._rx(self._ax1_cruise_button_msg())
       self.assertTrue(self.safety.get_controls_allowed())
 
-    # The dedicated resume bit uses the same falling-edge engagement path.
+    # Hyundai's combined pause/resume button is represented as CANCEL. Stock
+    # longitudinal resumes from the PCM state; it must not look like RES/+.
     self.safety.set_controls_allowed(False)
     self._rx(self._ax1_cruise_button_msg(resume=1))
     self._rx(self._ax1_cruise_button_msg())
-    self.assertTrue(self.safety.get_controls_allowed())
+    self.assertFalse(self.safety.get_controls_allowed())
+
+    # With openpilot longitudinal, CANCEL pauses immediately and cannot
+    # re-engage on release.
+    self.safety.set_controls_allowed(True)
+    self._rx(self._ax1_cruise_button_msg(resume=1))
+    self.assertFalse(self.safety.get_controls_allowed())
+    self._rx(self._ax1_cruise_button_msg())
+    self.assertFalse(self.safety.get_controls_allowed())
 
     # Both switch bits together are the gap button and must not engage controls.
     self.safety.set_controls_allowed(False)

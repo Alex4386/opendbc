@@ -185,11 +185,11 @@ static void hyundai_rx_hook(const CANPacket_t *msg) {
       int cruise_button = HYUNDAI_BTN_NONE;
       int ax1_button = (msg->data[7] >> 4U) & 0x3U;
       if (GET_BIT(msg, 62U)) {
-        cruise_button = HYUNDAI_BTN_RESUME;
+        cruise_button = HYUNDAI_BTN_CANCEL;
       } else if (ax1_button == 1) {
-        cruise_button = HYUNDAI_BTN_SET;
-      } else if (ax1_button == 2) {
         cruise_button = HYUNDAI_BTN_RESUME;
+      } else if (ax1_button == 2) {
+        cruise_button = HYUNDAI_BTN_SET;
       } else {
       }
       hyundai_common_cruise_buttons_check(cruise_button, GET_BIT(msg, 58U));
