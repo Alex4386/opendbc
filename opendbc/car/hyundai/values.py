@@ -279,7 +279,7 @@ class CAR(Platforms):
   HYUNDAI_INSTER = HyundaiRefreshPlatformConfig(
     [HyundaiCarDocs("Hyundai Inster (Casper Electric) 2025", car_parts=CarParts.common([CarHarness.hyundai_a]))],
     CarSpecs(mass=1350, wheelbase=2.580, steerRatio=13.2),
-    flags=HyundaiFlags.CHECKSUM_CRC8 | HyundaiFlags.CAMERA_SCC | HyundaiFlags.EV | HyundaiFlags.ALT_AX1EV_BUTTONS,
+    flags=HyundaiFlags.CHECKSUM_CRC8 | HyundaiFlags.CAMERA_SCC | HyundaiFlags.EV | HyundaiFlags.ALT_LIMITS | HyundaiFlags.ALT_AX1EV_BUTTONS,
   )
   HYUNDAI_IONIQ = HyundaiPlatformConfig(
     [HyundaiCarDocs("Hyundai Ioniq Hybrid 2017-19", car_parts=CarParts.common([CarHarness.hyundai_c]))],
