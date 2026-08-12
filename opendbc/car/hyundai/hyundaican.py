@@ -1,5 +1,5 @@
 from opendbc.car.crc import CRC8J1850, mk_crc8_fun
-from opendbc.car.hyundai.values import CAR, HyundaiFlags
+from opendbc.car.hyundai.values import CAR, HyundaiFlags, Buttons
 
 from opendbc.sunnypilot.car.hyundai.escc import EnhancedSmartCruiseControl
 from opendbc.sunnypilot.car.hyundai.lead_data_ext import CanLeadData
@@ -45,7 +45,8 @@ def create_lkas11(packer, frame, CP, apply_torque, steer_req,
                            CAR.HYUNDAI_SANTA_FE_PHEV_2022, CAR.KIA_STINGER_2022, CAR.KIA_K5_HEV_2020, CAR.KIA_CEED,
                            CAR.HYUNDAI_AZERA_6TH_GEN, CAR.HYUNDAI_AZERA_HEV_6TH_GEN, CAR.HYUNDAI_CUSTIN_1ST_GEN, CAR.HYUNDAI_KONA_2022,
                            CAR.KIA_CEED_PHEV_2022_NON_SCC, CAR.HYUNDAI_KONA_EV_NON_SCC, CAR.HYUNDAI_ELANTRA_2022_NON_SCC,
-                           CAR.GENESIS_G70_2021_NON_SCC, CAR.KIA_SELTOS_2023_NON_SCC, CAR.HYUNDAI_BAYON_1ST_GEN_NON_SCC):
+                           CAR.GENESIS_G70_2021_NON_SCC, CAR.KIA_SELTOS_2023_NON_SCC, CAR.HYUNDAI_BAYON_1ST_GEN_NON_SCC,
+                           CAR.HYUNDAI_ELANTRA_2024, CAR.HYUNDAI_ELANTRA_HEV_2024, CAR.HYUNDAI_INSTER):
     values["CF_Lkas_LdwsActivemode"] = int(left_lane) + (int(right_lane) << 1)
     values["CF_Lkas_LdwsOpt_USM"] = 2
 
@@ -122,6 +123,19 @@ def create_clu11(packer, frame, clu11, button, CP):
   # send buttons to camera on camera-scc based cars
   bus = 2 if CP.flags & HyundaiFlags.CAMERA_SCC else 0
   return packer.make_can_msg("CLU11", bus, values)
+
+
+def create_cruise_button(packer, frame, clu11, button, CP):
+  if CP.flags & HyundaiFlags.ALT_AX1EV_BUTTONS:
+    values = {
+      "CRUISE_BUTTONS": button if button in (Buttons.RES_ACCEL, Buttons.SET_DECEL, Buttons.GAP_DIST) else Buttons.NONE,
+      # AX1EV's combined pause/resume button has cancel semantics while SCC is active.
+      "CRUISE_RESUME": button == Buttons.CANCEL,
+    }
+    bus = 2 if CP.flags & HyundaiFlags.CAMERA_SCC else 0
+    return packer.make_can_msg("AX1_CRUISE_BUTTONS", bus, values)
+
+  return create_clu11(packer, frame, clu11, button, CP)
 
 
 def create_lfahda_mfc(packer, enabled, lfa_icon):

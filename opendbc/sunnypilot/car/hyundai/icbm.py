@@ -38,7 +38,7 @@ class IntelligentCruiseButtonManagementInterface(IntelligentCruiseButtonManageme
     # send resume at a max freq of 10Hz
     if (self.frame - self.last_button_frame) * DT_CTRL > 0.1:
       # send 25 messages at a time to increases the likelihood of resume being accepted
-      can_sends.extend([hyundaican.create_clu11(packer, self.frame, CS.clu11, send_button, self.CP)] * copies)
+      can_sends.extend([hyundaican.create_cruise_button(packer, self.frame, CS.clu11, send_button, self.CP)] * copies)
       if (self.frame - self.last_button_frame) * DT_CTRL >= 0.15:
         self.last_button_frame = self.frame
 

@@ -2,16 +2,19 @@ from hypothesis import settings, given, strategies as st
 
 import unittest
 
-from opendbc.car import gen_empty_fingerprint
+from opendbc.can import CANPacker
+from opendbc.car import Bus, gen_empty_fingerprint
 from opendbc.car.structs import CarParams
 from opendbc.car.fw_versions import build_fw_dict
+from opendbc.car.hyundai import hyundaican
 from opendbc.car.hyundai.interface import CarInterface
+from opendbc.car.hyundai.carstate import AX1_CRUISE_BUTTONS, AX1_PAUSE_RESUME_BUTTON
 from opendbc.car.hyundai.hyundaicanfd import CanBus
 from opendbc.car.hyundai.radar_interface import RADAR_START_ADDR
 from opendbc.car.hyundai.values import CAMERA_SCC_CAR, CANFD_CAR, CAN_GEARS, CAR, CHECKSUM, DATE_FW_ECUS, \
                                          HYBRID_CAR, EV_CAR, FW_QUERY_CONFIG, LEGACY_SAFETY_MODE_CAR, CANFD_FUZZY_WHITELIST, \
                                          UNSUPPORTED_LONGITUDINAL_CAR, PLATFORM_CODE_ECUS, HYUNDAI_VERSION_REQUEST_LONG, \
-                                         HyundaiFlags, get_platform_codes, HyundaiSafetyFlags, \
+                                         HyundaiFlags, get_platform_codes, HyundaiSafetyFlags, Buttons, DBC, \
                                          NON_SCC_CAR
 from opendbc.car.hyundai.fingerprints import FW_VERSIONS
 
@@ -69,6 +72,36 @@ class TestHyundaiFingerprint(unittest.TestCase):
     for car_model in CAR:
       CP = CarInterface.get_params(car_model, fingerprint, [], False, False, False)
       assert bool(CP.flags & HyundaiFlags.ALT_LIMITS) == bool(CP.safetyConfigs[-1].safetyParam & HyundaiSafetyFlags.ALT_LIMITS)
+
+  def test_alt_ax1ev_buttons(self):
+    fingerprint = gen_empty_fingerprint()
+    for car_model in CAR:
+      CP = CarInterface.get_params(car_model, fingerprint, [], False, False, False)
+      is_ax1ev = car_model == CAR.HYUNDAI_INSTER
+      assert bool(CP.flags & HyundaiFlags.ALT_AX1EV_BUTTONS) == is_ax1ev
+      assert bool(CP.safetyConfigs[-1].safetyParam & HyundaiSafetyFlags.ALT_AX1EV_BUTTONS) == is_ax1ev
+
+    assert AX1_CRUISE_BUTTONS == {
+      0: Buttons.NONE,
+      1: Buttons.RES_ACCEL,
+      2: Buttons.SET_DECEL,
+      3: Buttons.GAP_DIST,
+    }
+    assert AX1_PAUSE_RESUME_BUTTON == Buttons.CANCEL
+
+    CP = CarInterface.get_params(CAR.HYUNDAI_INSTER, fingerprint, [], False, False, False)
+    packer = CANPacker(DBC[CAR.HYUNDAI_INSTER][Bus.pt])
+    expected_payloads = {
+      Buttons.RES_ACCEL: b"\x00\x00\x00\x00\x00\x00\x00\x10",
+      Buttons.SET_DECEL: b"\x00\x00\x00\x00\x00\x00\x00\x20",
+      Buttons.GAP_DIST: b"\x00\x00\x00\x00\x00\x00\x00\x30",
+      Buttons.CANCEL: b"\x00\x00\x00\x00\x00\x00\x00\x40",
+    }
+    for button, expected_payload in expected_payloads.items():
+      addr, payload, bus = hyundaican.create_cruise_button(packer, 0, {}, button, CP)
+      assert addr == 0x3EF
+      assert payload == expected_payload
+      assert bus == 2
 
   def test_can_features(self):
     # Test no EV/HEV in any gear lists (should all use ELECT_GEAR)

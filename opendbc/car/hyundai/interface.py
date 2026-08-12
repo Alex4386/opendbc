@@ -112,6 +112,12 @@ class CarInterface(CarInterfaceBase):
       if 0x391 in fingerprint[0]:
         ret.flags |= HyundaiFlags.HAS_LDA_BUTTON.value
 
+      if ret.flags & HyundaiFlags.CAN_REFRESH_MSGS:
+        ret.safetyConfigs[-1].safetyParam |= HyundaiSafetyFlags.CAN_REFRESH_MSGS.value
+
+      if ret.flags & HyundaiFlags.ALT_AX1EV_BUTTONS:
+        ret.safetyConfigs[-1].safetyParam |= HyundaiSafetyFlags.ALT_AX1EV_BUTTONS.value
+
     # Common lateral control setup
 
     ret.centerToFront = ret.wheelbase * 0.4
@@ -177,7 +183,7 @@ class CarInterface(CarInterfaceBase):
       ret.safetyParam |= HyundaiSafetyFlagsSP.ESCC
       stock_cp.radarUnavailable = False
 
-    if stock_cp.flags & HyundaiFlags.HAS_LDA_BUTTON:
+    if stock_cp.flags & (HyundaiFlags.HAS_LDA_BUTTON | HyundaiFlags.ALT_AX1EV_BUTTONS):
       ret.safetyParam |= HyundaiSafetyFlagsSP.HAS_LDA_BUTTON
 
     if stock_cp.flags & (HyundaiFlags.CANFD_CAMERA_SCC | HyundaiFlags.CAMERA_SCC):

@@ -8,7 +8,7 @@ from opendbc.car.structs import CarParams
 from opendbc.safety.tests.libsafety import libsafety_py
 import opendbc.safety.tests.common as common
 from opendbc.safety.tests.common import CANPackerSafety
-from opendbc.safety.tests.hyundai_common import HyundaiButtonBase, HyundaiLongitudinalBase
+from opendbc.safety.tests.hyundai_common import Buttons, HyundaiButtonBase, HyundaiLongitudinalBase
 
 from opendbc.sunnypilot.car.hyundai.values import HyundaiSafetyFlagsSP
 
@@ -95,6 +95,8 @@ class TestHyundaiSafety(HyundaiButtonBase, common.CarSafetyTest, common.DriverTo
 
   SAFETY_PARAM_SP: int = 0
 
+  LFAHDA_MFC_LEN = 4
+
   @classmethod
   def setUpClass(cls):
     if cls.__name__ == "TestHyundaiSafety":
@@ -144,6 +146,15 @@ class TestHyundaiSafety(HyundaiButtonBase, common.CarSafetyTest, common.DriverTo
   def _torque_cmd_msg(self, torque, steer_req=1):
     values = {"CR_Lkas_StrToqReq": torque, "CF_Lkas_ActToi": steer_req}
     return self.packer.make_can_msg_safety("LKAS11", 0, values)
+
+  def test_lfahda_mfc_tx_length(self):
+    # correct length should be allowed
+    self.safety.set_controls_allowed(1)
+    self.assertTrue(self._tx(common.make_msg(0, 0x485, self.LFAHDA_MFC_LEN)))
+
+    # wrong length should be rejected
+    wrong_len = 8 if self.LFAHDA_MFC_LEN == 4 else 4
+    self.assertFalse(self._tx(common.make_msg(0, 0x485, wrong_len)))
 
   def _acc_state_msg(self, enable):
     values = {"MainMode_ACC": enable}
@@ -316,6 +327,179 @@ class TestHyundaiSafetyFCEV(TestHyundaiSafety):
     return self.packer.make_can_msg_safety("FCEV_ACCELERATOR", 0, values)
 
 
+class TestHyundaiSafetyCanRefresh(TestHyundaiSafety):
+  LFAHDA_MFC_LEN = 8
+
+  def setUp(self):
+    self.packer = CANPackerSafety("hyundai_can_refresh_generated")
+    self.safety = libsafety_py.libsafety
+    self.safety.set_safety_hooks(CarParams.SafetyModel.hyundai, HyundaiSafetyFlags.CAN_REFRESH_MSGS)
+    self.safety.init_tests()
+
+
+class TestHyundaiSafetyAltAx1evLdaButton(TestHyundaiSafetyCameraSCC):
+  __test__ = True
+  LFAHDA_MFC_LEN = 8
+  SAFETY_PARAM_SP = HyundaiSafetyFlagsSP.HAS_LDA_BUTTON | HyundaiSafetyFlagsSP.LONG_MAIN_CRUISE_TOGGLEABLE
+
+  def setUp(self):
+    self.packer = CANPackerSafety("hyundai_can_refresh_generated")
+    self.safety = libsafety_py.libsafety
+    self.safety.set_current_safety_param_sp(self.SAFETY_PARAM_SP)
+    self.addCleanup(self.safety.set_current_safety_param_sp, HyundaiSafetyFlagsSP.DEFAULT)
+    self.safety.set_safety_hooks(CarParams.SafetyModel.hyundai, HyundaiSafetyFlags.EV_GAS | HyundaiSafetyFlags.CAMERA_SCC |
+                                 HyundaiSafetyFlags.CAN_REFRESH_MSGS | HyundaiSafetyFlags.ALT_AX1EV_BUTTONS)
+    self.safety.init_tests()
+
+  def _lkas_button_msg(self, enabled):
+    return self.packer.make_can_msg_safety("AX1_LDA_BUTTON", 0, {"LDA_BTN": enabled})
+
+  def _user_gas_msg(self, gas):
+    values = {"Accel_Pedal_Pos": gas}
+    return self.packer.make_can_msg_safety("E_EMS11", 0, values, fix_checksum=checksum)
+
+  def _ax1_cruise_button_msg(self, buttons=0, resume=0, main_button=0, bus=0):
+    values = {"CRUISE_BUTTONS": buttons, "CRUISE_RESUME": resume, "CRUISE_MAIN": main_button}
+    return self.packer.make_can_msg_safety("AX1_CRUISE_BUTTONS", bus, values)
+
+  def _button_msg(self, buttons, main_button=0, bus=0):
+    rocker = buttons if buttons in range(4) else Buttons.NONE
+    return self._ax1_cruise_button_msg(rocker, buttons == Buttons.CANCEL, main_button, bus)
+
+  def test_ax1_button_tx_rejects_invalid_signals(self):
+    self.safety.set_controls_allowed(True)
+    self.assertFalse(self._tx(super()._button_msg(Buttons.RESUME, bus=self.BUTTONS_TX_BUS)))
+    self.assertFalse(self._tx(self._ax1_cruise_button_msg(buttons=Buttons.RESUME, main_button=1, bus=self.BUTTONS_TX_BUS)))
+    self.assertFalse(self._tx(self._ax1_cruise_button_msg(buttons=3, bus=self.BUTTONS_TX_BUS)))
+    self.assertFalse(self._tx(self._ax1_cruise_button_msg(buttons=Buttons.RESUME, resume=1, bus=self.BUTTONS_TX_BUS)))
+
+  def test_lda_button_not_shadowed_by_bcm_po_11(self):
+    # The Inster sends both messages. Ensure the legacy message arriving first
+    # cannot prevent safety from receiving the AX1EV-specific LDA button.
+    self._rx(self.packer.make_can_msg_safety("BCM_PO_11", 0, {"LDA_BTN": 0}))
+    self.safety.set_controls_allowed_lateral(False)
+    self.safety.set_mads_params(True, False, False)
+    self._rx(self._lkas_button_msg(True))
+    self._rx(self._lkas_button_msg(False))
+    self.assertTrue(self.safety.get_controls_allowed_lateral())
+
+  def test_ax1_low_frequency_rx_checks(self):
+    base_param = HyundaiSafetyFlags.EV_GAS | HyundaiSafetyFlags.CAMERA_SCC | \
+                 HyundaiSafetyFlags.CAN_REFRESH_MSGS | HyundaiSafetyFlags.ALT_AX1EV_BUTTONS
+
+    for longitudinal in (False, True):
+      with self.subTest(longitudinal=longitudinal):
+        self.safety.set_safety_hooks(CarParams.SafetyModel.hyundai,
+                                     base_param | (HyundaiSafetyFlags.LONG if longitudinal else 0))
+        self.safety.init_tests()
+
+        # Feed every monitored input once, then run the Panda safety tick. The
+        # AX1 button frames are 5 Hz and must not invalidate an otherwise-live
+        # configuration in either stock or openpilot longitudinal mode.
+        for msg in (self._user_gas_msg(0), self._speed_msg(0), self._user_brake_msg(False),
+                    self._torque_driver_msg(0), super()._button_msg(0), self._lkas_button_msg(False),
+                    self._ax1_cruise_button_msg()):
+          self._rx(msg)
+        if not longitudinal:
+          self._rx(self._pcm_status_msg(False))
+          self._rx(self._acc_state_msg(False))
+
+        self.safety.set_controls_allowed(True)
+        self.safety.safety_tick_current_safety_config()
+        self.assertTrue(self.safety.get_controls_allowed())
+
+  def test_ax1_buttons_not_shadowed_by_clu11(self):
+    safety_param = HyundaiSafetyFlags.EV_GAS | HyundaiSafetyFlags.LONG | HyundaiSafetyFlags.CAMERA_SCC | \
+                   HyundaiSafetyFlags.CAN_REFRESH_MSGS | HyundaiSafetyFlags.ALT_AX1EV_BUTTONS
+    self.safety.set_current_safety_param_sp(self.SAFETY_PARAM_SP)
+    self.safety.set_safety_hooks(CarParams.SafetyModel.hyundai, safety_param)
+    self.safety.init_tests()
+    self.safety.set_mads_params(True, False, False)
+
+    # AX1EV sends CLU11 with an unrelated value between 0x3EF samples. It must
+    # not erase the rocker state before the falling-edge engagement check.
+    self.safety.set_controls_allowed(False)
+    self._rx(self._ax1_cruise_button_msg(buttons=1))
+    self._rx(super()._button_msg(7))
+    self._rx(self._ax1_cruise_button_msg())
+    self.assertTrue(self.safety.get_controls_allowed())
+
+    # Nor may CLU11 reset the shared main-button edge state and make a held
+    # 0x3EF press toggle ACC main repeatedly.
+    self.safety.set_acc_main_on(False)
+    self.safety.set_controls_allowed_lateral(False)
+    self._rx(self._ax1_cruise_button_msg(main_button=1))
+    self.assertTrue(self.safety.get_acc_main_on())
+    self._rx(super()._button_msg(7))
+    self.assertTrue(self.safety.get_acc_main_on())
+    self._rx(self._ax1_cruise_button_msg(main_button=1))
+    self.assertTrue(self.safety.get_acc_main_on())
+    self.assertTrue(self.safety.get_controls_allowed_lateral())
+
+  def test_ax1_buttons_with_experimental_longitudinal(self):
+    safety_param = HyundaiSafetyFlags.EV_GAS | HyundaiSafetyFlags.LONG | HyundaiSafetyFlags.CAMERA_SCC | \
+                   HyundaiSafetyFlags.CAN_REFRESH_MSGS | HyundaiSafetyFlags.ALT_AX1EV_BUTTONS
+    self.safety.set_current_safety_param_sp(self.SAFETY_PARAM_SP)
+    self.safety.set_safety_hooks(CarParams.SafetyModel.hyundai, safety_param)
+    self.safety.init_tests()
+
+    # AX1EV uses bit 60 for RES/accel and bit 61 for SET/decel.
+    for button in (1, 2):
+      self.safety.set_controls_allowed(False)
+      self._rx(self._ax1_cruise_button_msg(buttons=button))
+      self._rx(self._ax1_cruise_button_msg())
+      self.assertTrue(self.safety.get_controls_allowed())
+
+    # Hyundai's combined pause/resume button is represented as CANCEL. Stock
+    # longitudinal resumes from the PCM state; it must not look like RES/+.
+    self.safety.set_controls_allowed(False)
+    self._rx(self._ax1_cruise_button_msg(resume=1))
+    self._rx(self._ax1_cruise_button_msg())
+    self.assertFalse(self.safety.get_controls_allowed())
+
+    # With openpilot longitudinal, CANCEL pauses immediately and cannot
+    # re-engage on release.
+    self.safety.set_controls_allowed(True)
+    self._rx(self._ax1_cruise_button_msg(resume=1))
+    self.assertFalse(self.safety.get_controls_allowed())
+    self._rx(self._ax1_cruise_button_msg())
+    self.assertFalse(self.safety.get_controls_allowed())
+
+    # Both switch bits together are the gap button and must not engage controls.
+    self.safety.set_controls_allowed(False)
+    self._rx(self._ax1_cruise_button_msg(buttons=3))
+    self._rx(self._ax1_cruise_button_msg())
+    self.assertFalse(self.safety.get_controls_allowed())
+
+    # Bit 58 is the cruise-main toggle on AX1EV.
+    self.safety.set_acc_main_on(False)
+    self._rx(self._ax1_cruise_button_msg(main_button=1))
+    self.assertTrue(self.safety.get_acc_main_on())
+    self._rx(self._ax1_cruise_button_msg())
+    self._rx(self._ax1_cruise_button_msg(main_button=1))
+    self.assertFalse(self.safety.get_acc_main_on())
+
+    # Experimental mode must also monitor the AX1EV LDA button for MADS.
+    self.safety.set_controls_allowed_lateral(False)
+    self.safety.set_mads_params(True, False, False)
+    self._rx(self._lkas_button_msg(True))
+    self._rx(self._lkas_button_msg(False))
+    self.assertTrue(self.safety.get_controls_allowed_lateral())
+
+  def test_camera_scc_forwarding(self):
+    # Keep vehicle inputs flowing to the camera so stock SCC remains healthy.
+    for addr in (0x3EF, 0x416, 0x4F1):
+      self.assertEqual(2, self.safety.safety_fwd_hook(0, addr))
+
+    # Block only the camera's lateral/HUD outputs that openpilot replaces.
+    for addr in (0x340, 0x485):
+      self.assertEqual(-1, self.safety.safety_fwd_hook(2, addr))
+
+    # Stock longitudinal remains camera-controlled when openpilot longitudinal is off.
+    for addr in (0x420, 0x421):
+      self.assertEqual(0, self.safety.safety_fwd_hook(2, addr))
+
+
 class TestHyundaiLegacySafety(TestHyundaiSafety):
   def setUp(self):
     self.packer = CANPackerSafety("hyundai_can_generated")
@@ -443,6 +627,36 @@ class TestHyundaiLongitudinalSafetyCameraSCC(HyundaiLongitudinalBase, TestHyunda
 
   def test_disabled_ecu_alive(self):
     pass
+
+
+class TestHyundaiSafetyCanRefreshCameraSCC(TestHyundaiSafetyCameraSCC):
+  LFAHDA_MFC_LEN = 8
+
+  def setUp(self):
+    self.packer = CANPackerSafety("hyundai_can_refresh_generated")
+    self.safety = libsafety_py.libsafety
+    self.safety.set_safety_hooks(CarParams.SafetyModel.hyundai, HyundaiSafetyFlags.CAMERA_SCC | HyundaiSafetyFlags.CAN_REFRESH_MSGS)
+    self.safety.init_tests()
+
+
+class TestHyundaiSafetyCanRefreshLong(TestHyundaiLongitudinalSafety):
+  LFAHDA_MFC_LEN = 8
+
+  def setUp(self):
+    self.packer = CANPackerSafety("hyundai_can_refresh_generated")
+    self.safety = libsafety_py.libsafety
+    self.safety.set_safety_hooks(CarParams.SafetyModel.hyundai, HyundaiSafetyFlags.LONG | HyundaiSafetyFlags.CAN_REFRESH_MSGS)
+    self.safety.init_tests()
+
+
+class TestHyundaiSafetyCanRefreshLongCameraSCC(TestHyundaiLongitudinalSafetyCameraSCC):
+  LFAHDA_MFC_LEN = 8
+
+  def setUp(self):
+    self.packer = CANPackerSafety("hyundai_can_refresh_generated")
+    self.safety = libsafety_py.libsafety
+    self.safety.set_safety_hooks(CarParams.SafetyModel.hyundai, HyundaiSafetyFlags.LONG | HyundaiSafetyFlags.CAMERA_SCC | HyundaiSafetyFlags.CAN_REFRESH_MSGS)
+    self.safety.init_tests()
 
 
 @parameterized_class(LDA_BUTTON)
