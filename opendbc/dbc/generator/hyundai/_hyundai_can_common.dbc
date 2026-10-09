@@ -1455,16 +1455,17 @@ BO_ 909 FCA11: 8 FCA
  SG_ PAINT1_Status : 16|2@1+ (1,0) [0|1] "" XXX
 
 BO_ 1156 HDA11_MFC: 8 XXX
- SG_ Counter : 5|4@0+ (1,0) [0|15] "" XXX
- SG_ NEW_SIGNAL_1 : 1|2@0+ (1,0) [0|255] "" XXX
- SG_ NEW_SIGNAL_2 : 7|2@0+ (1,0) [0|3] "" XXX
- SG_ NEW_SIGNAL_3 : 15|8@0+ (1,0) [0|255] "" XXX
- SG_ NEW_SIGNAL_4 : 16|2@1+ (1,0) [0|3] "" XXX
- SG_ NEW_SIGNAL_5 : 18|14@1+ (1,0) [0|63] "" XXX
- SG_ NEW_SIGNAL_6 : 33|2@0+ (1,0) [0|1] "" XXX
- SG_ NEW_SIGNAL_7 : 34|14@1+ (1,0) [0|16383] "" XXX
- SG_ NEW_SIGNAL_8 : 49|2@0+ (1,0) [0|1] "" XXX
- SG_ NEW_SIGNAL_9 : 50|14@1- (1,-4095) [0|16383] "" XXX
+ SG_ LEFT_LANE_STATUS : 0|2@1+ (1,0) [0|3] "" XXX
+ SG_ Counter : 2|4@1+ (1,0) [0|15] "" XXX
+ SG_ LEFT_LANE_CROSSING : 6|1@1+ (1,0) [0|1] "" XXX
+ SG_ LEFT_LANE_UNKNOWN : 8|8@1+ (1,0) [0|255] "" XXX
+ SG_ LEFT_LANE_STATUS_2 : 16|2@1+ (1,0) [0|3] "" XXX
+ SG_ LEFT_LANE_ANGLE : 18|14@1+ (1,-4096) [-4096|12287] "" XXX
+ SG_ RIGHT_LANE_STATUS : 32|2@1+ (1,0) [0|3] "" XXX
+ SG_ RIGHT_LANE_CROSSING : 38|1@1+ (1,0) [0|1] "" XXX
+ SG_ RIGHT_LANE_UNKNOWN : 40|8@1+ (1,0) [0|255] "" XXX
+ SG_ RIGHT_LANE_STATUS_2 : 48|2@1+ (1,0) [0|3] "" XXX
+ SG_ RIGHT_LANE_ANGLE : 50|14@1+ (1,-4096) [-4096|12287] "" XXX
 
 BO_ 1155 FCA12: 8 FCA
  SG_ FCA_USM : 0|3@1+ (1,0) [0|7] "" CGW,CLU,ESC
@@ -1668,6 +1669,13 @@ CM_ 512 "Contains signal with gear shifter. Used by fuel cell hydrogen-powered (
 CM_ SG_ 871 CF_Lvr_IsgState "Idle Stop and Go";
 CM_ SG_ 1056 SCCInfoDisplay "Goes to 1 for a second while transitioning from Cruise Control to No Message";
 CM_ SG_ 1348 SpeedLim_Nav_Clu "Speed limit displayed on Nav, Cluster and HUD";
+CM_ 1156 "Camera lane info for the cluster lane graphic. Layout observed on the 2025 Hyundai Inster (AX1EV), 14 Hz";
+CM_ SG_ 1156 LEFT_LANE_CROSSING "Pulses for ~0.4 s while the car crosses the left lane line, e.g. during a lane change";
+CM_ SG_ 1156 RIGHT_LANE_CROSSING "Pulses for ~0.4 s while the car crosses the right lane line, e.g. during a lane change";
+CM_ SG_ 1156 LEFT_LANE_UNKNOWN "0 when no lane line. Tracks the left line's lateral position but wraps, meaning not decoded";
+CM_ SG_ 1156 RIGHT_LANE_UNKNOWN "0 when no lane line. Tracks the right line's lateral position but wraps, meaning not decoded";
+CM_ SG_ 1156 LEFT_LANE_ANGLE "Exactly 0 (raw 4096) when no lane line, follows the line's heading relative to the car";
+CM_ SG_ 1156 RIGHT_LANE_ANGLE "Exactly 0 (raw 4096) when no lane line, follows the line's heading relative to the car";
 CM_ SG_ 1348 Navi_RoadClass "Road class of the current navigation link. HDA (HDA_Icon_State != 0) is only offered on highway links. Observed on the 2025 Hyundai Inster.";
 
 VAL_ 274 CUR_GR 1 "D" 2 "D" 3 "D" 4 "D" 5 "D" 6 "D" 7 "D" 8 "D" 14 "R" 0 "P";
@@ -1681,6 +1689,8 @@ VAL_ 909 CF_VSM_Warn 2 "FCW" 3 "AEB";
 VAL_ 916 ACCEnable 0 "SCC ready" 1 "SCC temp fault" 2 "SCC permanent fault" 3 "SCC permanent fault, communication issue";
 VAL_ 1056 SCCInfoDisplay 0 "No Message" 2 "Cruise Control" 3 "Lost Lead" 4 "Standstill";
 VAL_ 1057 ACCMode 0 "off" 1 "enabled" 2 "driver_override" 3 "off_maybe_fault";
+VAL_ 1156 LEFT_LANE_STATUS 0 "none" 3 "detected";
+VAL_ 1156 RIGHT_LANE_STATUS 0 "none" 2 "weak" 3 "detected";
 VAL_ 1348 Navi_RoadClass 0 "no_data" 1 "highway" 2 "general_road" 3 "invalid";
 VAL_ 1157 HDA_Icon_State 0 "no_hda" 1 "white_hda" 2 "green_hda";
 VAL_ 1157 LFA_SysWarning 0 "no_message" 1 "switching_to_hda" 2 "switching_to_scc" 3 "lfa_error" 4 "check_hda" 5 "keep_hands_on_wheel_orange" 6 "keep_hands_on_wheel_red";
