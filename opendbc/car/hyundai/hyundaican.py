@@ -138,10 +138,13 @@ def create_cruise_button(packer, frame, clu11, button, CP):
   return create_clu11(packer, frame, clu11, button, CP)
 
 
-def create_lfahda_mfc(packer, enabled, lfa_icon):
-  values = {
-    "LFA_Icon_State": lfa_icon,
-  }
+# HDA state from the camera, forwarded so the cluster keeps showing HDA while we own LFAHDA_MFC
+LFAHDA_MFC_HDA_SIGNALS = ("HDA_USM", "HDA_Active", "HDA_Icon_State", "HDA_Chime", "HDA_VSetReq", "HDA_SysWarning", "LFA_USM")
+
+
+def create_lfahda_mfc(packer, enabled, lfa_icon, lfahda_mfc=None):
+  values = {s: lfahda_mfc[s] for s in LFAHDA_MFC_HDA_SIGNALS} if lfahda_mfc is not None else {}
+  values["LFA_Icon_State"] = lfa_icon
   return packer.make_can_msg("LFAHDA_MFC", 0, values)
 
 

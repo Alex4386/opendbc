@@ -1,7 +1,8 @@
 import unittest
 
-from opendbc.can import CANPacker
+from opendbc.can import CANPacker, CANParser
 from opendbc.car import Bus, gen_empty_fingerprint
+from opendbc.car.can_definitions import CanData
 from opendbc.car.structs import CarParams
 from opendbc.car.fw_versions import build_fw_dict
 from opendbc.car.hyundai import hyundaican
@@ -110,6 +111,22 @@ class TestHyundaiFingerprint(unittest.TestCase):
       assert addr == 0x3EF
       assert payload == expected_payload
       assert bus == 2
+
+  def test_lfahda_mfc_hda_passthrough(self):
+    # stock AX1EV camera frame: HDA_USM=2, HDA_Icon_State=2 (green), LFA_SysWarning=5, LFA_Icon_State=2
+    dbc = DBC[CAR.HYUNDAI_INSTER][Bus.pt]
+    stock_dat = bytes.fromhex("1200050200000000")
+    parser = CANParser(dbc, [("LFAHDA_MFC", 0)], 2)
+    parser.update([(0, [CanData(0x485, stock_dat, 2)])])
+    packer = CANPacker(dbc)
+
+    # HDA state is forwarded, our LFA icon replaces the stock one and stock LFA warnings are dropped
+    addr, payload, bus = hyundaican.create_lfahda_mfc(packer, True, 1, parser.vl["LFAHDA_MFC"])
+    assert (addr, bus) == (0x485, 0)
+    assert payload == bytes.fromhex("1200000100000000")
+
+    addr, payload, bus = hyundaican.create_lfahda_mfc(packer, True, 1)
+    assert payload == bytes.fromhex("0000000100000000")
 
   def test_can_features(self):
     for car_model in CAR:

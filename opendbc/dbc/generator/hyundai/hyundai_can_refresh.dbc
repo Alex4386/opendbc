@@ -20,3 +20,10 @@ BO_ 1157 LFAHDA_MFC: 8 XXX
  SG_ LFA_Icon_State : 24|2@1+ (1,0) [0|3] "" XXX
  SG_ LFA_USM : 27|2@1+ (1,0) [0|3] "" XXX
  SG_ HDA_SysWarning : 29|2@1+ (1,0) [0|3] "" XXX
+
+CM_ SG_ 1007 CRUISE_BUTTONS "Steering wheel +/- toggle, same encoding as CLU11 CF_Clu_CruiseSwState. 3 (gap) has not been observed on AX1EV yet";
+CM_ SG_ 1007 CRUISE_RESUME "Combined pause/resume button. Cancels SCC while engaged, resumes otherwise";
+CM_ SG_ 1157 HDA_Active "Unused on AX1EV, HDA state is reported only via HDA_Icon_State";
+CM_ SG_ 1157 HDA_VSetReq "Unused on AX1EV, always 0 even while HDA is active";
+
+VAL_ 1007 CRUISE_BUTTONS 0 "none" 1 "res_accel" 2 "set_decel" 3 "gap_dist";

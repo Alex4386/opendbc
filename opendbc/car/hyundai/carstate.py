@@ -39,6 +39,7 @@ class CarState(CarStateBase, EsccCarStateBase, MadsCarState, CarStateExt):
     self.cruise_buttons: deque = deque([Buttons.NONE] * PREV_BUTTON_SAMPLES, maxlen=PREV_BUTTON_SAMPLES)
     self.main_buttons: deque = deque([Buttons.NONE] * PREV_BUTTON_SAMPLES, maxlen=PREV_BUTTON_SAMPLES)
     self.lda_button = 0
+    self.lfahda_mfc = None
 
     self.gear_msg_canfd = "ACCELERATOR" if CP.flags & HyundaiFlags.EV else \
                           "GEAR_ALT" if CP.flags & HyundaiFlags.CANFD_ALT_GEARS else \
@@ -189,6 +190,8 @@ class CarState(CarStateBase, EsccCarStateBase, MadsCarState, CarStateExt):
     # save the entire LKAS11 and CLU11
     self.lkas11 = copy.copy(cp_cam.vl["LKAS11"])
     self.clu11 = copy.copy(cp.vl["CLU11"])
+    if self.CP.flags & HyundaiFlags.CAN_REFRESH_MSGS and self.CP.flags & HyundaiFlags.SEND_LFA:
+      self.lfahda_mfc = copy.copy(cp_cam.vl["LFAHDA_MFC"])
     self.steer_state = cp.vl["MDPS12"]["CF_Mdps_ToiActive"]  # 0 NOT ACTIVE, 1 ACTIVE
     prev_cruise_buttons = self.cruise_buttons[-1]
     prev_main_buttons = self.main_buttons[-1]
