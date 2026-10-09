@@ -29,6 +29,7 @@ git ancestry로는 원래 브랜치와 연결되지 않는다. 출처 확인은 
 | 커밋 | 내용 |
 |---|---|
 | `fca0d767` | `LFAHDA_MFC` 송신 시 순정 HDA 상태 전달 (HDA 표시 사라지는 문제), `Navi_HU.Navi_RoadClass`, `AX1_CRUISE_BUTTONS` 값 테이블 |
+| `9c7f1381` | `HDA11_MFC` (0x484) 차선 정보 디코딩: 좌우 차선 인식 상태, 차선 횡단 펄스, 차선 각도 |
 | `fcb6405e` | radar-tracks merge 후 수정: deprecated `RadarPoint` 필드 제거, 디버그 `print()` 제거, `HyundaiRadar` 파라미터 미설정 시 기본값, 레이더 결과 20 Hz 발행 |
 
 ## 알려진 문제 / TODO
@@ -42,4 +43,4 @@ git ancestry로는 원래 브랜치와 연결되지 않는다. 출처 확인은 
 
 | 브랜치 | 출처 | 이유 |
 |---|---|---|
-| `ccnc-lane-change-smonth` | winstar0070/opendbc | ccNC 계기판(CAN-FD `CCNC_0x161` / `CCNC_0x162`) 전용. Inster는 클래식 CAN이라 해당 메시지가 없음. Inster에서는 `HDA11_MFC` (`0x484`)가 비슷한 역할로 보여 별도 분석 중 |
+| `ccnc-lane-change-smonth` | winstar0070/opendbc | ccNC 계기판(CAN-FD `CCNC_0x161` / `CCNC_0x162`) 전용. Inster는 클래식 CAN이라 해당 메시지가 없음. Inster에서 비슷한 역할은 `HDA11_MFC` (`0x484`)로, DBC 디코딩까지 반영함 |
