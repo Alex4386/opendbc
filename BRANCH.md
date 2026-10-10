@@ -9,7 +9,7 @@ When merging or cherry-picking another branch, add a row to the tables below.
 | Item | Value |
 |---|---|
 | Base | `origin/master` (mirror of `sunnypilot/opendbc` master, merged periodically) |
-| Last master merge | `6e9f9631` (2026-09-03) |
+| Last master merge | `b4746ebb` (2026-10-10, master `b2acec1d`) |
 
 ## Merged branches
 
